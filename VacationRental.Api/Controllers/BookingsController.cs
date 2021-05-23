@@ -1,7 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Net;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Microsoft.Extensions.Logging;
+using VacationRental.Api.Data;
 using VacationRental.Api.Models;
+using VacationRental.Api.Services;
 
 namespace VacationRental.Api.Controllers
 {
@@ -9,64 +15,76 @@ namespace VacationRental.Api.Controllers
     [ApiController]
     public class BookingsController : ControllerBase
     {
-        private readonly IDictionary<int, RentalViewModel> _rentals;
-        private readonly IDictionary<int, BookingViewModel> _bookings;
+        private readonly IBookingsService _bookingsService;
+        private readonly ILogger<BookingsController> _logger;
 
-        public BookingsController(
-            IDictionary<int, RentalViewModel> rentals,
-            IDictionary<int, BookingViewModel> bookings)
+        public BookingsController(ILogger<BookingsController> logger, IBookingsService bookings)
         {
-            _rentals = rentals;
-            _bookings = bookings;
+            _logger = logger;
+            _bookingsService = bookings;
         }
 
         [HttpGet]
         [Route("{bookingId:int}")]
-        public BookingViewModel Get(int bookingId)
+        public IActionResult Get(int bookingId)
         {
-            if (!_bookings.ContainsKey(bookingId))
-                throw new ApplicationException("Booking not found");
-
-            return _bookings[bookingId];
+            try
+            {
+                ServiceResponseViewModel bookingResponse = _bookingsService.GetBooking(bookingId);
+                
+                switch (bookingResponse.HttpCodeResponse)
+                {
+                    case HttpStatusCode.OK:
+                        _logger.LogInformation($"{nameof(BookingsController)}_{nameof(Get)}: successfully executed.");
+                        return Ok(bookingResponse.Response);
+                    case HttpStatusCode.BadRequest:
+                        _logger.LogInformation($"{nameof(BookingsController)}_{nameof(Get)}: has returned a Bad Request. Message: {bookingResponse.Response}");
+                        return BadRequest(bookingResponse.Response);
+                    case HttpStatusCode.NotFound:
+                        _logger.LogInformation($"{nameof(BookingsController)}_{nameof(Get)}: has returned a Not Found. Message: {bookingResponse.Response}");
+                        return NotFound(bookingResponse.Response);
+                    default:
+                        throw new NotImplementedException();
+                }
+            }
+            catch (Exception e)
+            {
+                _logger.LogError($"{nameof(BookingsController)}_{nameof(Get)}: has thrown an exception: {e.Message.ToString()}");
+                return new StatusCodeResult(StatusCodes.Status500InternalServerError);
+            }
         }
 
         [HttpPost]
-        public ResourceIdViewModel Post(BookingBindingModel model)
+        public IActionResult Post(BookingBindingModel model)
         {
-            if (model.Nights <= 0)
-                throw new ApplicationException("Nigts must be positive");
-            if (!_rentals.ContainsKey(model.RentalId))
-                throw new ApplicationException("Rental not found");
-
-            for (var i = 0; i < model.Nights; i++)
+            try
             {
-                var count = 0;
-                foreach (var booking in _bookings.Values)
+                ServiceResponseViewModel bookingResponse = _bookingsService.CreateBooking(model);
+
+                switch (bookingResponse.HttpCodeResponse)
                 {
-                    if (booking.RentalId == model.RentalId
-                        && (booking.Start <= model.Start.Date && booking.Start.AddDays(booking.Nights) > model.Start.Date)
-                        || (booking.Start < model.Start.AddDays(model.Nights) && booking.Start.AddDays(booking.Nights) >= model.Start.AddDays(model.Nights))
-                        || (booking.Start > model.Start && booking.Start.AddDays(booking.Nights) < model.Start.AddDays(model.Nights)))
-                    {
-                        count++;
-                    }
+                    case HttpStatusCode.Created:
+                        _logger.LogInformation($"{nameof(BookingsController)}_{nameof(Post)}: successfully executed.");
+                        return Created(nameof(Post), bookingResponse.Response);
+                    case HttpStatusCode.BadRequest:
+                        _logger.LogInformation($"{nameof(BookingsController)}_{nameof(Post)}: has returned a Bad Request. Message: {bookingResponse.Response}");
+                        return BadRequest(bookingResponse.Response);
+                    case HttpStatusCode.Conflict:
+                        _logger.LogWarning($"{nameof(BookingsController)}_{nameof(Post)}: has returned a Unprocessable Entity. Message: {bookingResponse.Response}");
+                        return UnprocessableEntity(bookingResponse.Response);
+                    case HttpStatusCode.NotFound:
+                        _logger.LogInformation($"{nameof(BookingsController)}_{nameof(Post)}: has returned a Not Found. Message: {bookingResponse.Response}");
+                        return NotFound(bookingResponse.Response);
+                    default:
+                        throw new NotImplementedException();
                 }
-                if (count >= _rentals[model.RentalId].Units)
-                    throw new ApplicationException("Not available");
             }
-
-
-            var key = new ResourceIdViewModel { Id = _bookings.Keys.Count + 1 };
-
-            _bookings.Add(key.Id, new BookingViewModel
+            catch (Exception e)
             {
-                Id = key.Id,
-                Nights = model.Nights,
-                RentalId = model.RentalId,
-                Start = model.Start.Date
-            });
-
-            return key;
+                _logger.LogError($"{nameof(BookingsController)}_{nameof(Post)}: has thrown an exception: {e.Message.ToString()}");
+                return new StatusCodeResult(StatusCodes.Status500InternalServerError);
+            }
+            
         }
     }
 }

@@ -1,7 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Net;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using VacationRental.Api.Models;
+using VacationRental.Api.Services;
 
 namespace VacationRental.Api.Controllers
 {
@@ -9,51 +13,42 @@ namespace VacationRental.Api.Controllers
     [ApiController]
     public class CalendarController : ControllerBase
     {
-        private readonly IDictionary<int, RentalViewModel> _rentals;
-        private readonly IDictionary<int, BookingViewModel> _bookings;
+        private readonly ICalendarService _calendarService;
+        private readonly ILogger<CalendarController> _logger;
 
-        public CalendarController(
-            IDictionary<int, RentalViewModel> rentals,
-            IDictionary<int, BookingViewModel> bookings)
+        public CalendarController(ILogger<CalendarController> logger, ICalendarService calendarService)
         {
-            _rentals = rentals;
-            _bookings = bookings;
+            _logger = logger;
+            _calendarService = calendarService;
         }
 
         [HttpGet]
-        public CalendarViewModel Get(int rentalId, DateTime start, int nights)
+        public IActionResult Get(int rentalId, DateTime start, int nights)
         {
-            if (nights < 0)
-                throw new ApplicationException("Nights must be positive");
-            if (!_rentals.ContainsKey(rentalId))
-                throw new ApplicationException("Rental not found");
-
-            var result = new CalendarViewModel 
+            try
             {
-                RentalId = rentalId,
-                Dates = new List<CalendarDateViewModel>() 
-            };
-            for (var i = 0; i < nights; i++)
-            {
-                var date = new CalendarDateViewModel
+                ServiceResponseViewModel serviceResponse = _calendarService.GetCalendar(rentalId, start, nights);
+                
+                switch (serviceResponse.HttpCodeResponse)
                 {
-                    Date = start.Date.AddDays(i),
-                    Bookings = new List<CalendarBookingViewModel>()
-                };
-
-                foreach (var booking in _bookings.Values)
-                {
-                    if (booking.RentalId == rentalId
-                        && booking.Start <= date.Date && booking.Start.AddDays(booking.Nights) > date.Date)
-                    {
-                        date.Bookings.Add(new CalendarBookingViewModel { Id = booking.Id });
-                    }
+                    case HttpStatusCode.OK:
+                        _logger.LogInformation($"{nameof(CalendarController)}_{nameof(Get)}: successfully executed.");
+                        return Ok(serviceResponse.Response);
+                    case HttpStatusCode.BadRequest:
+                        _logger.LogInformation($"{nameof(CalendarController)}_{nameof(Get)}: has returned a Bad Request. Message: {serviceResponse.Response}");
+                        return BadRequest(serviceResponse.Response);
+                    case HttpStatusCode.NotFound:
+                        _logger.LogInformation($"{nameof(CalendarController)}_{nameof(Get)}: has returned a Not Found. Message: {serviceResponse.Response}");
+                        return NotFound(serviceResponse.Response);
+                    default:
+                        throw new NotImplementedException();
                 }
-
-                result.Dates.Add(date);
             }
-
-            return result;
+            catch (Exception e)
+            {
+                _logger.LogError($"{nameof(CalendarController)}_{nameof(Get)}: has thrown an exception: {e.Message.ToString()}");
+                return new StatusCodeResult(StatusCodes.Status500InternalServerError);
+            }
         }
     }
 }

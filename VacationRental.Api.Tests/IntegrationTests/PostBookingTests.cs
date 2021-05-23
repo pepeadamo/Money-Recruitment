@@ -20,6 +20,8 @@ namespace VacationRental.Api.Tests
         [Fact]
         public async Task GivenCompleteRequest_WhenPostBooking_ThenAGetReturnsTheCreatedBooking()
         {
+            int yearInTheFuture = DateTime.Now.AddYears(10).Year;
+            
             var postRentalRequest = new RentalBindingModel
             {
                 Units = 4
@@ -36,7 +38,7 @@ namespace VacationRental.Api.Tests
             {
                  RentalId = postRentalResult.Id,
                  Nights = 3,
-                 Start = new DateTime(2001, 01, 01)
+                 Start = new DateTime(yearInTheFuture, 01, 01)
             };
 
             ResourceIdViewModel postBookingResult;
@@ -58,8 +60,10 @@ namespace VacationRental.Api.Tests
         }
 
         [Fact]
-        public async Task GivenCompleteRequest_WhenPostBooking_ThenAPostReturnsErrorWhenThereIsOverbooking()
+        public async Task GivenCompleteRequest_WhenPostBooking_ThenAPostReturnsAnUnprocessableEntityWhenThereIsOverbooking()
         {
+            int yearInTheFuture = DateTime.Now.AddYears(10).Year;
+            
             var postRentalRequest = new RentalBindingModel
             {
                 Units = 1
@@ -76,7 +80,7 @@ namespace VacationRental.Api.Tests
             {
                 RentalId = postRentalResult.Id,
                 Nights = 3,
-                Start = new DateTime(2002, 01, 01)
+                Start = new DateTime(yearInTheFuture, 01, 01)
             };
 
             using (var postBooking1Response = await _client.PostAsJsonAsync($"/api/v1/bookings", postBooking1Request))
@@ -88,15 +92,22 @@ namespace VacationRental.Api.Tests
             {
                 RentalId = postRentalResult.Id,
                 Nights = 1,
-                Start = new DateTime(2002, 01, 02)
+                Start = new DateTime(yearInTheFuture, 01, 02)
             };
 
-            await Assert.ThrowsAsync<ApplicationException>(async () =>
+            // The behaviour of this endpoint has changed to a handled response with an HttpStatusCode.UnprocessableEntity response code
+            // await Assert.ThrowsAsync<ApplicationException>(async () =>
+            // {
+            //     using (var postBooking2Response = await _client.PostAsJsonAsync($"/api/v1/bookings", postBooking2Request))
+            //     {
+            //     }
+            // });
+
+            using (var postBooking2Response = await _client.PostAsJsonAsync($"/api/v1/bookings", postBooking2Request))
             {
-                using (var postBooking2Response = await _client.PostAsJsonAsync($"/api/v1/bookings", postBooking2Request))
-                {
-                }
-            });
+                Assert.False(postBooking2Response.IsSuccessStatusCode);
+                Assert.True(HttpStatusCode.UnprocessableEntity == postBooking2Response.StatusCode);
+            }
         }
     }
 }
