@@ -33,7 +33,6 @@ namespace VacationRental.Api
             //Repositories
             services.AddScoped<IRentalsRepository, RentalsRepository>();
             services.AddScoped<IBookingsRepository, BookingsRepository>();
-            services.AddScoped<ICalendarRepository, CalendarRepository>();
 
             //Services
             services.AddScoped<IRentalsService, RentalsService>();

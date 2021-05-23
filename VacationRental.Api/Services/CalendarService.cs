@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Net;
 using Microsoft.Extensions.Logging;
-using VacationRental.Api.Data;
 using VacationRental.Api.ExtensionMethods;
 using VacationRental.Api.Helpers;
 using VacationRental.Api.Models;
@@ -17,16 +16,13 @@ namespace VacationRental.Api.Services
     public class CalendarService : ICalendarService
     {
         private readonly ILogger<RentalsService> _logger;
-        private readonly ICalendarRepository _calendarRepository;
         private readonly IRentalsService _rentalsService;
         private readonly IBookingsService _bookingService;
         private readonly IDateHelper _dateHelper;
 
-        public CalendarService(ILogger<RentalsService> logger, ICalendarRepository calendarRepository, 
-            IRentalsService rentalsService, IBookingsService bookingService, IDateHelper dateHelper)
+        public CalendarService(ILogger<RentalsService> logger, IRentalsService rentalsService, IBookingsService bookingService, IDateHelper dateHelper)
         {
             _logger = logger;
-            _calendarRepository = calendarRepository;
             _rentalsService = rentalsService;
             _bookingService = bookingService;
             _dateHelper = dateHelper;
