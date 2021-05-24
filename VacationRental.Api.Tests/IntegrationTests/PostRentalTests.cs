@@ -29,13 +29,15 @@ namespace VacationRental.Api.Tests
             using (HttpResponseMessage postResponse = await _client.PostAsJsonAsync($"/api/v1/rentals", request))
             {
                 Assert.True(postResponse.IsSuccessStatusCode);
+                Assert.True(postResponse.StatusCode == HttpStatusCode.Created);
                 postResult = await postResponse.Content.ReadAsAsync<ResourceIdViewModel>();
             }
 
             using (HttpResponseMessage getResponse = await _client.GetAsync($"/api/v1/rentals/{postResult.Id}"))
             {
                 Assert.True(getResponse.IsSuccessStatusCode);
-
+                Assert.True(getResponse.StatusCode == HttpStatusCode.OK);
+                
                 var getResult = await getResponse.Content.ReadAsAsync<RentalViewModel>();
                 Assert.Equal(request.Units, getResult.Units);
             }
