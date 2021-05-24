@@ -3,6 +3,6 @@
     public class RentalBindingModel
     {
         public int Units { get; set; }
-        public int? PreparationTimeInDays { get; set; } = 1;
+        public int? PreparationTimeInDays { get; set; } = 0;
     }
 }

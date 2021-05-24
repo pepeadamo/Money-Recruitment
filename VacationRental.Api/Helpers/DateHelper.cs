@@ -13,7 +13,7 @@ namespace VacationRental.Api.Helpers
     {
         public bool IsOverlapping(DateTime startDateToBook, DateTime endDateToBook, DateTime startDateBooked, DateTime endDateBooked)
         {
-            return (startDateToBook.Date < endDateBooked.Date && endDateToBook.Date >= startDateBooked.Date);
+            return (startDateToBook.Date < endDateBooked.Date && endDateToBook.Date > startDateBooked.Date);
         }
 
         public bool IsDateBooked(DateTime dateToCheck, DateTime bookingStartDate, DateTime bookingEndDate)

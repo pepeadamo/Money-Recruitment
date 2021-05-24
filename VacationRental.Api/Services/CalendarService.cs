@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Net;
 using Microsoft.Extensions.Logging;
+using VacationRental.Api.Data;
 using VacationRental.Api.ExtensionMethods;
 using VacationRental.Api.Helpers;
 using VacationRental.Api.Models;
@@ -16,15 +17,16 @@ namespace VacationRental.Api.Services
     public class CalendarService : ICalendarService
     {
         private readonly ILogger<RentalsService> _logger;
-        private readonly IRentalsService _rentalsService;
-        private readonly IBookingsService _bookingService;
+        private readonly IRentalsRepository _rentalsRepository;
+        private readonly IBookingsRepository _bookingRepository;
         private readonly IDateHelper _dateHelper;
 
-        public CalendarService(ILogger<RentalsService> logger, IRentalsService rentalsService, IBookingsService bookingService, IDateHelper dateHelper)
+        public CalendarService(ILogger<RentalsService> logger, IRentalsRepository rentalsRepository, 
+            IBookingsRepository bookingRepository, IDateHelper dateHelper)
         {
             _logger = logger;
-            _rentalsService = rentalsService;
-            _bookingService = bookingService;
+            _rentalsRepository = rentalsRepository;
+            _bookingRepository = bookingRepository;
             _dateHelper = dateHelper;
         }
 
@@ -63,7 +65,7 @@ namespace VacationRental.Api.Services
                 }
             }
 
-            bool rentalExists = _rentalsService.DoesRentalExists(rentalId);
+            bool rentalExists = _rentalsRepository.DoesRentalExist(rentalId);
             if (!rentalExists)
             {
                 {
@@ -81,7 +83,7 @@ namespace VacationRental.Api.Services
         
         private CalendarViewModel GenerateCalendarResponse(int rentalId, DateTime startDate, int numberOfNights)
         {
-            List<BookingViewModel> bookingsForRentals = _bookingService.GetBookingsByRental(rentalId);
+            List<BookingViewModel> bookingsForRentals = _bookingRepository.GetBookingsByRental(rentalId);
             
             CalendarViewModel calendarDates = new CalendarViewModel 
             {
@@ -105,7 +107,7 @@ namespace VacationRental.Api.Services
                         calendarDate.Bookings.Add(new CalendarBookingViewModel { Id = booking.Id, Unit = booking.Unit});
                     }
 
-                    RentalViewModel rental = _rentalsService.GetRental(booking.RentalId).Response as RentalViewModel;
+                    RentalViewModel rental = _rentalsRepository.GetRental(booking.RentalId);
 
                     if (calendarDate.Date >= booking.Start.AddDays(booking.Nights))
                     {

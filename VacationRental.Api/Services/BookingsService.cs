@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -14,22 +14,21 @@ namespace VacationRental.Api.Services
     {
         ServiceResponseViewModel CreateBooking(BookingBindingModel model);
         ServiceResponseViewModel GetBooking(int bookingId);
-        List<BookingViewModel> GetBookings(int rentalId, DateTime date);
-        List<BookingViewModel> GetBookingsByRental(int rentalId);
     }
     
     public class BookingsService : IBookingsService
     {
         private readonly ILogger<RentalsService> _logger;
         private readonly IBookingsRepository _bookingsRepository;
-        private readonly IRentalsService _rentalsService;
+        private readonly IRentalsRepository _rentalRepository;
         private readonly IDateHelper _dateHelper;
 
-        public BookingsService(ILogger<RentalsService> logger, IBookingsRepository bookingsRepository, IRentalsService rentalsService, IDateHelper dateHelper)
+        public BookingsService(ILogger<RentalsService> logger, IBookingsRepository bookingsRepository, 
+            IRentalsRepository rentalRepository, IDateHelper dateHelper)
         {
             _logger = logger;
             _bookingsRepository = bookingsRepository;
-            _rentalsService = rentalsService;
+            _rentalRepository = rentalRepository;
             _dateHelper = dateHelper;
         }
 
@@ -116,15 +115,9 @@ namespace VacationRental.Api.Services
             return serviceResponse;
         }
 
-        public List<BookingViewModel> GetBookings(int rentalId, DateTime date)
+        private List<BookingViewModel> GetBookings(int rentalId, DateTime date)
         {
             List<BookingViewModel> bookingsForRentals = _bookingsRepository.GetBookings(rentalId, date);
-            return bookingsForRentals;
-        }
-        
-        public List<BookingViewModel> GetBookingsByRental(int rentalId)
-        {
-            List<BookingViewModel> bookingsForRentals = _bookingsRepository.GetBookingsByRental(rentalId);
             return bookingsForRentals;
         }
 
@@ -142,7 +135,7 @@ namespace VacationRental.Api.Services
                 }
             }
 
-            bool rentalExists = _rentalsService.DoesRentalExists(model.RentalId);
+            bool rentalExists = _rentalRepository.DoesRentalExist(model.RentalId);
             if (!rentalExists)
             {
                 {
@@ -174,7 +167,7 @@ namespace VacationRental.Api.Services
         {
             DateTime endDateToBook = model.Start.AddDays(model.Nights);
             
-            RentalViewModel rental = _rentalsService.GetUnitsForRental(model.RentalId);
+            RentalViewModel rental = _rentalRepository.GetRental(model.RentalId);
             
             List<BookingViewModel> bookingsForRentals = GetBookings(model.RentalId, model.Start);
             

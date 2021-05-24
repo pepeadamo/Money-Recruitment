@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -8,7 +8,6 @@ using VacationRental.Api.ExtensionMethods;
 using VacationRental.Api.Helpers;
 using VacationRental.Api.Models;
 
-
 namespace VacationRental.Api.Services
 {
     public interface IRentalsService
@@ -16,8 +15,6 @@ namespace VacationRental.Api.Services
         ServiceResponseViewModel CreateRental(RentalBindingModel model);
         ServiceResponseViewModel ModifyRental(int rentalId, RentalBindingModel model);
         ServiceResponseViewModel GetRental(int rentalId);
-        bool DoesRentalExists(int rentalId);
-        RentalViewModel GetUnitsForRental(int modelRentalId);
     }
     
     public class RentalsService : IRentalsService
@@ -92,24 +89,39 @@ namespace VacationRental.Api.Services
             List<BookingViewModel> bookings = _bookingRepository.GetBookings(rentalId, _dateHelper.GetNowDate());
             RentalViewModel rental = _rentalRepository.GetRental(rentalId);
 
-            bool preparationTimeIsConflictingWithBookings = DoesPreparationTimeConflictWithBookings(model, bookings, rental);
-            if (preparationTimeIsConflictingWithBookings)
+            if (rental.PreparationTimeInDays == model.PreparationTimeInDays && rental.Units == model.Units)
             {
                 return new ServiceResponseViewModel
                 {
-                    HttpCodeResponse = HttpStatusCode.Conflict,
-                    Response = "The preparation time value can not be modified due to conflicts with existing bookings."
+                    HttpCodeResponse = HttpStatusCode.NoContent,
+                    Response = null
                 };
             }
-
-            bool numberOfUnitsIsConflictingWithBookings = DoesNumberOfUnitsConflictWithBookings(bookings, rental, model);
-            if (numberOfUnitsIsConflictingWithBookings)
+            
+            if (rental.PreparationTimeInDays != model.PreparationTimeInDays)
             {
-                return new ServiceResponseViewModel
+                bool preparationTimeIsConflictingWithBookings = DoesPreparationTimeConflictWithBookings(model.PreparationTimeInDays.Value, bookings);
+                if (preparationTimeIsConflictingWithBookings)
                 {
-                    HttpCodeResponse = HttpStatusCode.Conflict,
-                    Response = "The number of units can not be modified due to conflicts with existing bookings."
-                };
+                    return new ServiceResponseViewModel
+                    {
+                        HttpCodeResponse = HttpStatusCode.Conflict,
+                        Response = "The preparation time value can not be modified due to conflicts with existing bookings."
+                    };
+                }
+            }
+
+            if (rental.Units != model.Units)
+            {
+                bool numberOfUnitsIsConflictingWithBookings = DoesNumberOfUnitsConflictWithBookings(bookings, rental, model);
+                if (numberOfUnitsIsConflictingWithBookings)
+                {
+                    return new ServiceResponseViewModel
+                    {
+                        HttpCodeResponse = HttpStatusCode.Conflict,
+                        Response = "The number of units can not be modified due to conflicts with existing bookings."
+                    };
+                }
             }
             
             _logger.LogDebug($"{nameof(ModifyRental)}: the rental does not cause conflicts with bookings.");
@@ -126,60 +138,6 @@ namespace VacationRental.Api.Services
             _logger.LogDebug($"{nameof(ModifyRental)}: the rental was successfully modified.");
             
             return serviceResponse;
-        }
-
-        private bool DoesNumberOfUnitsConflictWithBookings(List<BookingViewModel> bookings, RentalViewModel rental, RentalBindingModel model)
-        {
-            if (model.Units >= rental.Units)
-            {
-                return false;
-            }
-            
-            DateTime lastDateOfBooking = bookings
-                .OrderByDescending(b => b.Start.AddDays(b.Nights + rental.PreparationTimeInDays.Value))
-                .Select(b => b.Start.AddDays(b.Nights + rental.PreparationTimeInDays.Value))
-                .First();
-
-            DateTime firstDateOfBooking = bookings
-                .OrderByDescending(b => b.Start)
-                .Last().Start;
-            
-            for (DateTime date = firstDateOfBooking; date <= lastDateOfBooking; date = date.AddDays(1))
-            {
-                List<BookingViewModel> bookingsForDate = bookings
-                    .Where(b => _dateHelper.IsDateBooked(date, b.Start, b.Start.AddDays(b.Nights + rental.PreparationTimeInDays.Value)))
-                    .ToList();
-
-                bool rentalIsFullyBooked = bookingsForDate.Count == rental.Units;
-                if (rentalIsFullyBooked)
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-        private bool DoesPreparationTimeConflictWithBookings(RentalBindingModel model, List<BookingViewModel> bookings, RentalViewModel rental)
-        {
-            foreach (BookingViewModel referenceBooking in bookings)
-            {
-                DateTime referenceStartDate = referenceBooking.Start;
-                DateTime referenceEndDate = referenceBooking.Start.AddDays(referenceBooking.Nights + rental.PreparationTimeInDays.Value);
-                
-                List<BookingViewModel> possibleOverlappedBookings = bookings.Where(booking => _dateHelper.IsOverlapping(referenceStartDate,
-                        referenceEndDate, booking.Start,
-                        booking.Start.AddDays(booking.Nights + rental.PreparationTimeInDays.Value)))
-                    .ToList();
-            
-                bool bookingIsOverlappedInUnit = possibleOverlappedBookings.Any(b => b.Id != referenceBooking.Id && b.Unit == referenceBooking.Unit );
-                if (bookingIsOverlappedInUnit )
-                {
-                    return true;
-                }
-            }
-
-            return false;
         }
 
         public ServiceResponseViewModel GetRental(int rentalId)
@@ -221,18 +179,12 @@ namespace VacationRental.Api.Services
             return serviceResponse;
         }
 
-        public bool DoesRentalExists(int rentalId)
+        private bool DoesRentalExists(int rentalId)
         {
             bool rentalExists = _rentalRepository.DoesRentalExist(rentalId);
             return rentalExists;
         }
 
-        public RentalViewModel GetUnitsForRental(int modelRentalId)
-        {
-            RentalViewModel unitsForRental = _rentalRepository.GetRental(modelRentalId);
-            return unitsForRental;
-        }
-        
         private (bool isValid, ServiceResponseViewModel serviceModel) ValidateModel(RentalBindingModel model)
         {
             bool numberIsValid = model.Units.IsGreaterThanZero();
@@ -245,17 +197,70 @@ namespace VacationRental.Api.Services
                 });
             }
 
-            bool preparationDaysIsValid = model.PreparationTimeInDays.Value.IsGreaterThanZero();
+            bool preparationDaysIsValid = model.PreparationTimeInDays.Value.IsGreaterOrEqualThanZero();
             if (!preparationDaysIsValid)
             {
                 return (false, new ServiceResponseViewModel
                 {
                     HttpCodeResponse = HttpStatusCode.BadRequest,
-                    Response = "The preparation time in days needs to be higher than 0."
+                    Response = "The preparation time in days needs to be greater or equal than 0."
                 });
             }
 
             return (true, null);
+        }
+        
+        private bool DoesNumberOfUnitsConflictWithBookings(List<BookingViewModel> bookings, RentalViewModel rental, RentalBindingModel model)
+        {
+            if (model.Units >= rental.Units)
+            {
+                return false;
+            }
+            
+            DateTime lastDateOfBooking = bookings
+                .OrderByDescending(b => b.Start.AddDays(b.Nights + model.PreparationTimeInDays.Value))
+                .Select(b => b.Start.AddDays(b.Nights + model.PreparationTimeInDays.Value))
+                .First();
+
+            DateTime firstDateOfBooking = bookings
+                .OrderByDescending(b => b.Start)
+                .Last().Start;
+            
+            for (DateTime date = firstDateOfBooking; date <= lastDateOfBooking; date = date.AddDays(1))
+            {
+                List<BookingViewModel> bookingsForDate = bookings
+                    .Where(b => _dateHelper.IsDateBooked(date, b.Start, b.Start.AddDays(b.Nights + model.PreparationTimeInDays.Value)))
+                    .ToList();
+
+                bool rentalIsFullyBooked = bookingsForDate.Count == rental.Units;
+                if (rentalIsFullyBooked)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private bool DoesPreparationTimeConflictWithBookings(int updatedPreparationTime, List<BookingViewModel> bookings)
+        {
+            foreach (BookingViewModel referenceBooking in bookings)
+            {
+                DateTime referenceStartDate = referenceBooking.Start;
+                DateTime referenceEndDate = referenceBooking.Start.AddDays(referenceBooking.Nights + updatedPreparationTime);
+                
+                List<BookingViewModel> possibleOverlappedBookings = bookings
+                    .Where(booking => _dateHelper.IsOverlapping(referenceStartDate, referenceEndDate, booking.Start, booking.Start.AddDays(booking.Nights + updatedPreparationTime)))
+                    .ToList();
+            
+                bool bookingIsOverlappedOnUnit = possibleOverlappedBookings.Any(b => b.Id != referenceBooking.Id && b.Unit == referenceBooking.Unit);
+                if (bookingIsOverlappedOnUnit)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
     }
 }

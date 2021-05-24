@@ -70,8 +70,8 @@ namespace VacationRental.Api.Controllers
                         _logger.LogInformation($"{nameof(BookingsController)}_{nameof(Post)}: has returned a Bad Request. Message: {bookingResponse.Response}");
                         return BadRequest(bookingResponse.Response);
                     case HttpStatusCode.Conflict:
-                        _logger.LogWarning($"{nameof(BookingsController)}_{nameof(Post)}: has returned a Unprocessable Entity. Message: {bookingResponse.Response}");
-                        return UnprocessableEntity(bookingResponse.Response);
+                        _logger.LogWarning($"{nameof(BookingsController)}_{nameof(Post)}: has returned a Conflict. Message: {bookingResponse.Response}");
+                        return Conflict(bookingResponse.Response);
                     case HttpStatusCode.NotFound:
                         _logger.LogInformation($"{nameof(BookingsController)}_{nameof(Post)}: has returned a Not Found. Message: {bookingResponse.Response}");
                         return NotFound(bookingResponse.Response);
