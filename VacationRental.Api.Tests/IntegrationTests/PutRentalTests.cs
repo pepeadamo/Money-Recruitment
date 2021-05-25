@@ -18,7 +18,7 @@ namespace VacationRental.Api.Tests
         }
         
         [Fact]
-        public async Task GivenCompleteRequest_WhenGetRental_ThenAGetReturnsTheUpdatedRental()
+        public async Task GivenCompleteRequest_WhenUpdateRental_ThenAGetReturnsTheUpdatedRental()
         {
             var request = new RentalBindingModel
             {
@@ -35,7 +35,7 @@ namespace VacationRental.Api.Tests
 
             request.PreparationTimeInDays = 100;
             request.Units = 100;
-            ResourceIdViewModel putResult;
+            
             using (HttpResponseMessage postResponse = await _client.PutAsJsonAsync($"/api/v1/rentals/{postResult.Id}", request))
             {
                 Assert.True(postResponse.IsSuccessStatusCode);
@@ -117,8 +117,7 @@ namespace VacationRental.Api.Tests
                 Units = 2,
                 PreparationTimeInDays = 4
             };
-
-            ResourceIdViewModel putResult;
+            
             using (HttpResponseMessage putResponse = await _client.PutAsJsonAsync($"/api/v1/rentals/{postRentalResult.Id}", putRental))
             {
                 Assert.False(putResponse.IsSuccessStatusCode);
@@ -180,8 +179,7 @@ namespace VacationRental.Api.Tests
                 Units = 1,
                 PreparationTimeInDays = 3
             };
-
-            ResourceIdViewModel putResult;
+            
             using (HttpResponseMessage putResponse = await _client.PutAsJsonAsync($"/api/v1/rentals/{postRentalResult.Id}", putRental))
             {
                 Assert.False(putResponse.IsSuccessStatusCode);

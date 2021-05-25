@@ -204,7 +204,7 @@ namespace VacationRental.Api.Tests.UnitTests.Services
         }
         
         [Fact]
-        public void ModifyRental_WhenPreparationTimeValueConflictsWithBookings_ReturnsBadRequest()
+        public void ModifyRental_WhenChangingPreparationTimeValueConflictsWithExistingBookings_ReturnsBadRequest()
         {
             // Arrange
             int rentalId = 100;
@@ -269,7 +269,7 @@ namespace VacationRental.Api.Tests.UnitTests.Services
         }
         
         [Fact]
-        public void ModifyRental_WhenNumberOfUnitsIsReducedAndConflictsWithBookings_ReturnsBadRequest()
+        public void ModifyRental_WhenNumberOfUnitsIsReducedAndConflictsWithExistingBookings_ReturnsBadRequest()
         {
             // Arrange
             int rentalId = 100;
@@ -334,7 +334,7 @@ namespace VacationRental.Api.Tests.UnitTests.Services
         }
         
         [Fact]
-        public void ModifyRental_WhenNumberOfUnitsIsIncremented_RentalIsUpdatedAndReturnsNoContent()
+        public void ModifyRental_WhenNumberOfUnitsIsIncrementedAndPreparationTimeIsReduced_RentalIsUpdatedSuccessfullyAndReturnsNoContent()
         {
             // Arrange
             int rentalId = 100;
@@ -343,8 +343,8 @@ namespace VacationRental.Api.Tests.UnitTests.Services
             
             RentalBindingModel updatedModel = new RentalBindingModel
             {
-                Units = 1,
-                PreparationTimeInDays = 10
+                Units = 4,
+                PreparationTimeInDays = 2
             };
 
             RentalViewModel expectedRentalModel = new RentalViewModel
